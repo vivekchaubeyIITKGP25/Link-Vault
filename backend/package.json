@@ -1,0 +1,29 @@
+{
+  "name": "linkvault-backend",
+  "version": "1.0.0",
+  "description": "Backend for LinkVault - secure file and text sharing application",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "cleanup": "node scripts/cleanup.js"
+  },
+  "keywords": ["file-sharing", "pastebin", "link-sharing"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "nanoid": "^5.0.4",
+    "mongoose": "^8.0.3",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
