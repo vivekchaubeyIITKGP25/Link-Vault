@@ -1,185 +1,122 @@
-# LinkVault – Secure File & Text Sharing
+# LinkVault
 
-LinkVault is a simple full-stack web app that allows users to share text or files securely using a private, hard-to-guess link.
-
-The main idea behind this project was to create something lightweight and secure — where content is **not publicly searchable**, and automatically disappears after a set time.
-
-This project was built as part of a take-home assignment and focuses on clean architecture, security basics, and usability.
-
-## What It Can Do
-
-* Upload either **plain text** or **one file**
-* Generate a unique shareable link
-* Content is accessible only via that link
-* Auto-expiry (10 minutes by default)
-* Optional password protection
-* Optional one-time view
-* Optional max view limit
-* Copy-to-clipboard for shared text
-* File download for uploaded files
-
-## Tech Stack
-
-### Frontend
-
-* React 18
-* Vite
-* Tailwind CSS
-* React Router
-* Axios
-
-### Backend
-
-* Node.js
-* Express
-* MongoDB (with Mongoose)
-* Multer (for file uploads)
-* nanoid (for unique IDs)
-* Node-cron (for cleanup jobs)
-* Local file storage (`uploads/` directory)
-
-## Prerequisites
-
-Make sure you have:
-
-* Node.js (v18 or higher)
-* MongoDB (local installation or MongoDB Atlas)
-* Git
+We built LinkVault to share text or files with private links that expire.
+I kept the flow simple: upload once, copy link, and let cleanup remove old data.
 
 ## Setup Instructions
 
-### Install Dependencies
+### 1 Prerequisites
 
-Backend:
+- Node.js 18+
+- MongoDB (local or Atlas)
+
+### 2 Install dependencies
 
 ```bash
 cd backend
 npm install
-```
-
-Frontend:
-
-```bash
 cd ../frontend
 npm install
 ```
 
-### Environment Variables
-
-Backend setup:
+### 3 Configure backend env
 
 ```bash
 cd backend
 cp .env.example .env
 ```
 
-Then update the `.env` file:
+Set these values in `backend/.env`:
 
-```
+```env
 PORT=5000
 NODE_ENV=development
-MONGODB_URI=<your-mongodb-uri>
+MONGODB_URI=mongodb://localhost:27017/linkvault
 UPLOAD_DIR=uploads
 BACKEND_URL=http://localhost:5000
 DEFAULT_EXPIRY_MINUTES=10
 MAX_FILE_SIZE_MB=10
 FRONTEND_URL=http://localhost:5173
+JWT_SECRET=change-this-secret
+JWT_EXPIRES_IN=7d
 ```
 
-Frontend setup:
+### 4 Configure frontend env
 
 ```bash
 cd ../frontend
 cp .env.example .env
 ```
 
-Default frontend config:
+`frontend/.env`:
 
-```
+```env
 VITE_API_URL=http://localhost:5000/api
 ```
 
-### Run the Application
+### 5 Run both apps
 
-Open two terminals.
-
-Terminal 1 (Backend):
+Terminal 1:
 
 ```bash
 cd backend
 npm run dev
 ```
 
-Terminal 2 (Frontend):
+Terminal 2:
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Now open:
-
-```
-http://localhost:5173
-```
+Open `http://localhost:5173`.
 
 ## API Overview
 
-Base URL:
+Base URL: `http://localhost:5000/api`
 
-```
-http://localhost:5000/api
-```
+### Auth
 
-### Upload Content
+- `POST /auth/register` - create account
+- `POST /auth/login` - login and receive JWT
+- `POST /auth/forgot-password` - create reset token
+- `POST /auth/reset-password` - set new password with token
+- `GET /auth/me` - current user (`Authorization: Bearer <token>`)
 
-```
-POST /upload
-Content-Type: multipart/form-data
-```
+### Content
 
-Fields:
+- `POST /upload` - upload text or a file (auth required)
+- `GET /content/recent` - latest 2 items for logged-in user
+- `GET /content/history` - full item history for logged-in user
+- `GET /content/:id/info` - metadata and password requirement
+- `GET /content/:id` - retrieve content (`?password=...` if protected)
+- `DELETE /content/:id` - owner deletes content
 
-* `textContent` (optional)
-* `file` (optional)
-* `expiryDateTime` (optional)
-* `password` (optional, minimum 8 characters)
-* `oneTimeView` (optional boolean)
-* `maxViews` (optional number)
+Upload rules:
 
-If no expiry is provided, content automatically expires after 10 minutes.
+- We accept either `textContent` or `file`, not both.
+- I support `expiryDateTime` or fallback expiry minutes.
+- Optional fields: `password`, `oneTimeView`, `maxViews`.
 
-### Get Content Info
+## Design Decisions
 
-```
-GET /content/:id/info
-```
+- We used MongoDB + Mongoose because content can be either text or file metadata in one document.
+- I used `nanoid(10)` for short, hard-to-guess share IDs.
+- We store files on local disk under `uploads/<uniqueId>/` for simple deployment.
+- I kept auth JWT-based so the frontend stays stateless.
+- We used `optionalAuth` on read routes so owners and public viewers can use the same link.
+- I used a cron cleanup job every 5 minutes to remove expired records and files together.
+- We track one-time access with `ownerPreviewUsed` and `recipientViewUsed` to avoid ambiguous behavior.
 
-### Get Content
+## Assumptions And Limitations
 
-```
-GET /content/:id
-Optional query: ?password=yourpassword
-```
+- We assume a single backend instance with local storage.
+- I assume MongoDB is reachable before server startup.
+- Password-protected content is checked server-side, but `contents.password` is currently stored in plain text.
+- Forgot-password does not send real email; in non-production I return the reset token in API response.
+- File type filtering is open by default, and there is no malware scan.
+- Rate limiting and audit logs are not implemented yet.
+- Expiry cleanup runs on a schedule, so deletion is near-real-time, not instant.
 
-### Delete Content
-
-```
-DELETE /content/:id
-```
-
-## Implementation Notes
-
-* IDs are generated using `nanoid` to ensure they are hard to guess.
-* Expired content is cleaned periodically using `node-cron`.
-* Uploaded files are stored locally in the `uploads/` directory.
-* Passwords are validated before granting access.
-* There is no public listing of content for privacy reasons.
-
-## Common Issues
-
-* MongoDB connection error → Check your URI and Atlas IP allowlist.
-* Port already in use → Change the `PORT` value in backend `.env`.
-* File upload fails → Make sure the `uploads/` folder exists and has write permissions.
-
-
+Schema reference: `database_schema.md`.
